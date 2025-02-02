@@ -1,17 +1,4 @@
 #!/bin/bash
-#SBATCH --partition=main                                 # Ask for unkillable job
-#SBATCH --gres=gpu:1
-#SBATCH --mem=10G                                        # Ask for 10 GB of RAM
-#SBATCH --time=2:00:00                                   # The job will run for 3 hours
-#SBATCH --output=./logs/abstractive_out.txt
-#SBATCH --error=./logs/abstractive_error.txt
-#SBATCH -c 2
-
-
-# Load the required modules
-module --quiet load miniconda/3
-module --quiet load cuda/12.1.1
-conda activate "glimpse"
 
 # Check if input file path is provided and valid
 if [ -z "$1" ] || [ ! -f "$1" ]; then
@@ -22,8 +9,18 @@ else
     dataset_path="$1"
 fi
 
+# Activate the conda environment
+# source ~/anaconda3/etc/profile.d/conda.sh
+# conda activate "glimpse"
+
+# Check if CUDA is available
+if ! command -v nvidia-smi &> /dev/null; then
+    echo "CUDA is not available. Please ensure CUDA is installed and the NVIDIA drivers are properly configured."
+    exit 1
+fi
 
 # Generate abstractive summaries
+# shellcheck disable=SC2199
 if [[ "$@" =~ "--add-padding" ]]; then # check if padding argument is present
     # add '--no-trimming' flag to the script
     candidates=$(python glimpse/data_loading/generate_abstractive_candidates.py  --dataset_path "$dataset_path" --scripted-run --no-trimming | tail -n 1)
@@ -32,6 +29,7 @@ else
     candidates=$(python glimpse/data_loading/generate_abstractive_candidates.py --dataset_path "$dataset_path" --scripted-run | tail -n 1)
 fi
 
-
 # Compute the RSA scores based on the generated summaries
 rsa_scores=$(python glimpse/src/compute_rsa.py --summaries $candidates | tail -n 1)
+
+echo "RSA Scores: $rsa_scores"

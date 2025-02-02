@@ -1,3 +1,4 @@
+from rsasumm.rsa_reranker import RSAReranking
 from pathlib import Path
 
 import pandas as pd
@@ -7,26 +8,29 @@ from tqdm import tqdm
 
 from pickle import dump
 
-import sys, os.path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
+import sys
+import os.path
 
-from rsasumm.rsa_reranker import RSAReranking
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
 
 DESC = """
 Compute the RSA matrices for all the set of multi-document samples and dump these along with additional information in a pickle file.
 """
 
-def parse_args():
+
+def parse_args(summery_path):
     parser = argparse.ArgumentParser()
     parser.add_argument("--model_name", type=str, default="google/pegasus-arxiv")
-    parser.add_argument("--summaries", type=Path, default="")
+    parser.add_argument("--summaries", type=Path, default=summery_path)
     parser.add_argument("--output_dir", type=str, default="output")
 
     parser.add_argument("--filter", type=str, default=None)
-    
+
     # if ran in a scripted way, the output path will be printed
-    parser.add_argument("--scripted-run", action=argparse.BooleanOptionalAction, default=False)
+    parser.add_argument(
+        "--scripted-run", action=argparse.BooleanOptionalAction, default=False
+    )
 
     parser.add_argument("--device", type=str, default="cuda")
 
@@ -34,7 +38,7 @@ def parse_args():
 
 
 def parse_summaries(path: Path) -> pd.DataFrame:
-    
+
     try:
         summaries = pd.read_csv(path)
     except:
@@ -42,7 +46,8 @@ def parse_summaries(path: Path) -> pd.DataFrame:
 
     # check if the dataframe has the right columns
     if not all(
-        col in summaries.columns for col in ["index", "id", "text", "gold", "summary", "id_candidate"]
+        col in summaries.columns
+        for col in ["index", "id", "text", "gold", "summary", "id_candidate"]
     ):
         raise ValueError(
             "The dataframe must have columns ['index', 'id', 'text', 'gold', 'summary', 'id_candidate']"
@@ -74,7 +79,7 @@ def compute_rsa(summaries: pd.DataFrame, model, tokenizer, device):
             consensuality_scores,
         ) = rsa_reranker.rerank(t=2)
 
-        gold = group['gold'].tolist()[0]
+        gold = group["gold"].tolist()[0]
 
         results.append(
             {
@@ -89,15 +94,15 @@ def compute_rsa(summaries: pd.DataFrame, model, tokenizer, device):
                 "consensuality_scores": consensuality_scores,
                 "gold": gold,
                 "rationality": 3,
-                "text_candidates" : group
+                "text_candidates": group,
             }
         )
 
     return results
 
 
-def main():
-    args = parse_args()
+def main(summery_path):
+    args = parse_args(summery_path)
 
     if args.filter is not None:
         if args.filter not in args.summaries.stem:
@@ -105,7 +110,7 @@ def main():
 
     # load the model and the tokenizer
     model = AutoModelForSeq2SeqLM.from_pretrained(args.model_name)
-    if "pegasus" in args.model_name: 
+    if "pegasus" in args.model_name:
         tokenizer = PegasusTokenizer.from_pretrained(args.model_name)
     else:
         tokenizer = AutoTokenizer.from_pretrained(args.model_name)
@@ -128,17 +133,17 @@ def main():
     # save the summaries
     # make the output directory if it does not exist
     Path(args.output_dir).mkdir(parents=True, exist_ok=True)
-    output_path = Path(args.output_dir) / f"{args.summaries.stem}-_-r3-_-rsa_reranked-{args.model_name.replace('/', '-')}.pk"
+    output_path = (
+        Path(args.output_dir)
+        / f"{args.summaries.stem}-_-r3-_-rsa_reranked-{args.model_name.replace('/', '-')}.pk"
+    )
     output_path_base = (
         Path(args.output_dir) / f"{args.summaries.stem}-_-base_reranked.pk"
     )
 
     with open(output_path, "wb") as f:
         dump(results, f)
-        
+
     # in case of scripted run, print the output path
-    if args.scripted_run: print(output_path)
-
-
-if __name__ == "__main__":
-    main()
+    if args.scripted_run:
+        print(output_path)

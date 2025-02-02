@@ -17,11 +17,9 @@ GENERATION_CONFIGS = {
         "top_p": 0.95,
         "temperature": 1.0,
         "num_return_sequences": 8,
-        "num_beams" : 1,
-
-        #"num_beam_groups" : 4,
+        "num_beams": 1,
+        # "num_beam_groups" : 4,
     },
-
     **{
         f"sampling_topp_{str(topp).replace('.', '')}": {
             "max_new_tokens": 200,
@@ -46,18 +44,29 @@ for key, value in GENERATION_CONFIGS.items():
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model_name", type=str, default="facebook/bart-large-cnn")
-    parser.add_argument("--dataset_path", type=Path, default="data/processed/all_reviews_2017.csv")
-    parser.add_argument("--decoding_config", type=str, default="top_p_sampling", choices=GENERATION_CONFIGS.keys())
+    parser.add_argument(
+        "--dataset_path", type=Path, default="data/processed/all_reviews_2017.csv"
+    )
+    parser.add_argument(
+        "--decoding_config",
+        type=str,
+        default="top_p_sampling",
+        choices=GENERATION_CONFIGS.keys(),
+    )
 
-    parser.add_argument("--batch_size", type=int, default=16)
+    parser.add_argument("--batch_size", type=int, default=8)
     parser.add_argument("--device", type=str, default="cuda")
-    parser.add_argument("--trimming", action=argparse.BooleanOptionalAction, default=True)
-    
+    parser.add_argument(
+        "--trimming", action=argparse.BooleanOptionalAction, default=True
+    )
+
     parser.add_argument("--output_dir", type=str, default="data/candidates")
 
     # if ran in a scripted way, the output path will be printed
-    parser.add_argument("--scripted-run", action=argparse.BooleanOptionalAction, default=False)
-    
+    parser.add_argument(
+        "--scripted-run", action=argparse.BooleanOptionalAction, default=False
+    )
+
     # limit the number of samples to generate
     parser.add_argument("--limit", type=int, default=None)
 
@@ -79,8 +88,13 @@ def prepare_dataset(dataset_path) -> Dataset:
 
 
 def evaluate_summarizer(
-    model, tokenizer, dataset: Dataset, decoding_config, batch_size: int,
-    device: str, trimming: bool
+    model,
+    tokenizer,
+    dataset: Dataset,
+    decoding_config,
+    batch_size: int,
+    device: str,
+    trimming: bool,
 ) -> Dataset:
     """
     @param model: The model used to generate the summaries
@@ -93,7 +107,9 @@ def evaluate_summarizer(
     # create a dataset with the text and the summary
 
     # create a dataloader
-    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False, drop_last=trimming)
+    dataloader = DataLoader(
+        dataset, batch_size=batch_size, shuffle=False, drop_last=trimming
+    )
 
     # generate summaries
     summaries = []
@@ -118,22 +134,29 @@ def evaluate_summarizer(
             **inputs,
             **decoding_config,
         )
-        
+
         total_size = outputs.numel()  # Total number of elements in the tensor
-        target_size = batch_size * outputs.shape[-1]  # Target size of the last dimension
-        pad_size = (target_size - (total_size % target_size)) % target_size  # Calculate the required padding size to make the total number of elements divisible by the target size
+        # Target size of the last dimension
+        target_size = batch_size * outputs.shape[-1]
+        # Calculate the required padding size to make the total number of elements divisible by the target size
+        pad_size = (target_size - (total_size % target_size)) % target_size
 
         # Pad the tensor with zeros to make the total number of elements divisible by the target size
-        if not trimming and pad_size != 0: outputs = torch.nn.functional.pad(outputs, (0, 0, 0, pad_size // outputs.shape[-1]))
+        if not trimming and pad_size != 0:
+            outputs = torch.nn.functional.pad(
+                outputs, (0, 0, 0, pad_size // outputs.shape[-1])
+            )
 
         # output : (batch_size * num_return_sequences, max_length)
         try:
             outputs = outputs.reshape(batch_size, -1, outputs.shape[-1])
         except Exception as e:
             print(f"Error reshaping outputs: {e}")
-            raise ValueError(f"Cannot reshape tensor of size {outputs.numel()} into shape "
-                            f"({batch_size}, -1, {outputs.shape[-1]}).")
-        
+            raise ValueError(
+                f"Cannot reshape tensor of size {outputs.numel()} into shape "
+                f"({batch_size}, -1, {outputs.shape[-1]})."
+            )
+
         # decode summaries
         for b in range(batch_size):
             summaries.append(
@@ -147,11 +170,12 @@ def evaluate_summarizer(
             )
 
     # if trimming the last batch, remove them from the dataset
-    if trimming: dataset = dataset.select(range(len(summaries)))
-    
+    if trimming:
+        dataset = dataset.select(range(len(summaries)))
+
     # add summaries to the huggingface dataset
     dataset = dataset.map(lambda example: {"summary": summaries.pop(0)})
-    
+
     return dataset
 
 
@@ -164,15 +188,14 @@ def sanitize_model_name(model_name: str) -> str:
     return model_name.replace("/", "_")
 
 
-def main():
+def main(arg):
     args = parse_args()
-
+    print("Arguments: from generate_abstractive_candidates.py")
+    print(args)
     # load the model
-    model = AutoModelForSeq2SeqLM.from_pretrained(
-        args.model_name
-    )
+    model = AutoModelForSeq2SeqLM.from_pretrained(args.model_name)
     tokenizer = AutoTokenizer.from_pretrained(args.model_name)
-    
+
     tokenizer.pad_token = tokenizer.unk_token
     tokenizer.pad_token_id = tokenizer.unk_token_id
 
@@ -187,7 +210,7 @@ def main():
     if args.limit is not None:
         _lim = min(args.limit, len(dataset))
         dataset = dataset.select(range(_lim))
-
+    print(f"Dataset size: {len(dataset)}")
     # generate summaries
     dataset = evaluate_summarizer(
         model,
@@ -200,10 +223,10 @@ def main():
     )
 
     df_dataset = dataset.to_pandas()
-    df_dataset = df_dataset.explode('summary')
+    df_dataset = df_dataset.explode("summary")
     df_dataset = df_dataset.reset_index()
     # add an idx with  the id of the summary for each example
-    df_dataset['id_candidate'] = df_dataset.groupby(['index']).cumcount()
+    df_dataset["id_candidate"] = df_dataset.groupby(["index"]).cumcount()
 
     # save the dataset
     # add unique date in name
@@ -223,8 +246,12 @@ def main():
     df_dataset.to_csv(output_path, index=False, encoding="utf-8")
 
     # in case of scripted run, print the output path
-    if args.scripted_run: print(output_path)
+    print(output_path)
+
+    if args.scripted_run:
+        print(output_path)
+    return output_path
 
 
-if __name__ == "__main__":
-    main()
+# if __name__ == "__main__":
+#     main()
