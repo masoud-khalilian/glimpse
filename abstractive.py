@@ -9,11 +9,15 @@ from glimpse.src.compute_rsa import main as rsa_main
 
 def get_dataset_path():
     """Retrieve dataset path from command-line arguments or use default."""
+    # Default path to the dataset
+    # change this to the path of the dataset you want to summarize
+    database_path = "data/processed/all_reviews_2017.csv"
+
     if len(sys.argv) < 2 or not os.path.isfile(sys.argv[1]):
         print(
-            "Couldn't find a valid path. Using default path: data/processed/all_reviews_2017.csv"
+            f"Couldn't find a valid path. Using default path:{database_path}"
         )
-        return "data/processed/all_reviews_2017.csv"
+        return database_path
     return sys.argv[1]
 
 
