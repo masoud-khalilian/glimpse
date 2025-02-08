@@ -41,11 +41,11 @@ for key, value in GENERATION_CONFIGS.items():
     }
 
 
-def parse_args():
+def parse_args(path):
     parser = argparse.ArgumentParser()
     parser.add_argument("--model_name", type=str, default="facebook/bart-large-cnn")
     parser.add_argument(
-        "--dataset_path", type=Path, default="data/processed/all_reviews_2017.csv"
+        "--dataset_path", type=Path, default=path
     )
     parser.add_argument(
         "--decoding_config",
@@ -188,9 +188,10 @@ def sanitize_model_name(model_name: str) -> str:
     return model_name.replace("/", "_")
 
 
-def main(arg):
-    args = parse_args()
+def main(path):
+    args = parse_args(path)
     print("Arguments: from generate_abstractive_candidates.py")
+    print("### make sure about the path of the dataset ###")
     print(args)
     # load the model
     model = AutoModelForSeq2SeqLM.from_pretrained(args.model_name)

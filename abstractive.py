@@ -28,17 +28,17 @@ def check_cuda():
 
 def generate_summaries(dataset_path, add_padding=False):
     """Generate abstractive summaries using the model."""
-    args = argparse.Namespace(
-        dataset_path=Path(dataset_path),
-        scripted_run=True,
-        no_trimming=add_padding,
-        filter=None,  # If filtering isn't needed, keep it None
-        model_name="google/pegasus-large",  # Default model (change as needed)
-        device="cuda" if shutil.which("nvidia-smi") else "cpu",  # Auto-detect device
-        output_dir="output",  # Default output directory
-    )
+    # args = argparse.Namespace(
+    #     dataset_path=Path(dataset_path),
+    #     scripted_run=True,
+    #     no_trimming=add_padding,
+    #     filter=None,  # If filtering isn't needed, keep it None
+    #     model_name="google/pegasus-large",  # Default model (change as needed)
+    #     device="cuda" if shutil.which("nvidia-smi") else "cpu",  # Auto-detect device
+    #     output_dir="output",  # Default output directory
+    # )
 
-    return generate_main(args)  # Pass Namespace object
+    return generate_main(dataset_path)  # Pass Namespace object
 
 
 def compute_rsa_scores(summaries):
