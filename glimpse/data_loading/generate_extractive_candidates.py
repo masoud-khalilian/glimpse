@@ -9,17 +9,17 @@ from tqdm import tqdm
 import nltk
 import os
 
-def parse_args():
+def parse_args(dataset_path,limit=None):
     parser = argparse.ArgumentParser()
     
-    parser.add_argument("--dataset_path", type=Path, default="data/processed/all_reviews_2017.csv")
+    parser.add_argument("--dataset_path", type=Path, default=dataset_path)
     parser.add_argument("--output_dir", type=str, default="data/candidates")
     
     # if ran in a scripted way, the output path will be printed
-    parser.add_argument("--scripted-run", action=argparse.BooleanOptionalAction, default=False)
+    parser.add_argument("--scripted-run", action=argparse.BooleanOptionalAction, default=True)
 
     # limit the number of samples to generate
-    parser.add_argument("--limit", type=int, default=None)
+    parser.add_argument("--limit", type=int, default=limit)
 
     args = parser.parse_args()
 
@@ -69,8 +69,8 @@ def evaluate_summarizer(dataset: Dataset) -> Dataset:
     return dataset
 
 
-def main():
-    args = parse_args()
+def main(dataset_path,limit=None):
+    args = parse_args(dataset_path,limit)
     # load the dataset
     print("Loading dataset...")
     dataset = prepare_dataset(args.dataset_path)
@@ -81,9 +81,7 @@ def main():
         dataset = dataset.select(range(_lim))
 
     # generate summaries
-    dataset = evaluate_summarizer(
-        dataset,
-    )
+    dataset = evaluate_summarizer(dataset)
 
     df_dataset = dataset.to_pandas()
     df_dataset = df_dataset.explode("summary")
@@ -108,7 +106,7 @@ def main():
     
     # in case of scripted run, print the output path
     if args.scripted_run: print(output_path)
+    return output_path
 
-
-if __name__ == "__main__":
-    main()
+# if __name__ == "__main__":
+#     main()
