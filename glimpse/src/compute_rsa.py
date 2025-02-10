@@ -24,16 +24,10 @@ def parse_args(summery_path):
     parser.add_argument("--model_name", type=str, default="google/pegasus-arxiv")
     parser.add_argument("--summaries", type=Path, default=summery_path)
     parser.add_argument("--output_dir", type=str, default="output")
-
     parser.add_argument("--filter", type=str, default=None)
-
     # if ran in a scripted way, the output path will be printed
-    parser.add_argument(
-        "--scripted-run", action=argparse.BooleanOptionalAction, default=False
-    )
-
+    parser.add_argument("--scripted-run", action=argparse.BooleanOptionalAction, default=True)
     parser.add_argument("--device", type=str, default="cuda")
-
     return parser.parse_args()
 
 
@@ -58,14 +52,14 @@ def parse_summaries(path: Path) -> pd.DataFrame:
 
 def compute_rsa(summaries: pd.DataFrame, model, tokenizer, device):
     results = []
-    for name, group in tqdm(summaries.groupby(["id"])):
+    for name, group in tqdm(summaries.groupby(["id"]), desc="Processing summaries", unit="group"):
         rsa_reranker = RSAReranking(
             model,
             tokenizer,
             device=device,
             candidates=group.summary.unique().tolist(),
             source_texts=group.text.unique().tolist(),
-            batch_size=32,
+            batch_size=16,
             rationality=3,
         )
         (
@@ -79,22 +73,22 @@ def compute_rsa(summaries: pd.DataFrame, model, tokenizer, device):
             consensuality_scores,
         ) = rsa_reranker.rerank(t=2)
 
-        gold = group["gold"].tolist()[0]
+        gold = group['gold'].tolist()[0]
 
         results.append(
             {
                 "id": name,
-                "best_rsa": best_rsa,
-                "best_base": best_base,
-                "speaker_df": speaker_df,
-                "listener_df": listener_df,
+                "best_rsa": best_rsa,  # best speaker score
+                "best_base": best_base,  # naive baseline
+                "speaker_df": speaker_df,  # all speaker results
+                "listener_df": listener_df,  # all listener results (chances of guessing correctly)
                 "initial_listener": initial_listener,
                 "language_model_proba_df": language_model_proba_df,
                 "initial_consensuality_scores": initial_consensuality_scores,
-                "consensuality_scores": consensuality_scores,
+                "consensuality_scores": consensuality_scores,  # uniqueness scores
                 "gold": gold,
-                "rationality": 3,
-                "text_candidates": group,
+                "rationality": 3,  # hyperparameter
+                "text_candidates" : group
             }
         )
 
@@ -123,10 +117,7 @@ def main(summery_path):
     # rerank the summaries
     results = compute_rsa(summaries, model, tokenizer, args.device)
     results = {"results": results}
-
-    results["metadata/reranking_model"] = args.model_name
-    results["metadata/rsa_iterations"] = 3
-
+    
     results["metadata/reranking_model"] = args.model_name
     results["metadata/rsa_iterations"] = 3
 

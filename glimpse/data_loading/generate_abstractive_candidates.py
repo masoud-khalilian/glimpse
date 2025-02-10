@@ -41,34 +41,19 @@ for key, value in GENERATION_CONFIGS.items():
     }
 
 
-def parse_args(path):
+def parse_args(dataset_path,limit=None):
     parser = argparse.ArgumentParser()
     parser.add_argument("--model_name", type=str, default="facebook/bart-large-cnn")
-    parser.add_argument(
-        "--dataset_path", type=Path, default=path
-    )
-    parser.add_argument(
-        "--decoding_config",
-        type=str,
-        default="top_p_sampling",
-        choices=GENERATION_CONFIGS.keys(),
-    )
-
-    parser.add_argument("--batch_size", type=int, default=8)
+    parser.add_argument("--dataset_path", type=Path, default=dataset_path)
+    parser.add_argument("--decoding_config",type=str,default="top_p_sampling",choices=GENERATION_CONFIGS.keys())
+    parser.add_argument("--batch_size", type=int, default=16)
     parser.add_argument("--device", type=str, default="cuda")
-    parser.add_argument(
-        "--trimming", action=argparse.BooleanOptionalAction, default=True
-    )
-
+    parser.add_argument("--trimming", action=argparse.BooleanOptionalAction, default=True)
     parser.add_argument("--output_dir", type=str, default="data/candidates")
-
     # if ran in a scripted way, the output path will be printed
-    parser.add_argument(
-        "--scripted-run", action=argparse.BooleanOptionalAction, default=False
-    )
-
+    parser.add_argument("--scripted-run", action=argparse.BooleanOptionalAction, default=False)
     # limit the number of samples to generate
-    parser.add_argument("--limit", type=int, default=None)
+    parser.add_argument("--limit", type=int, default=limit)
 
     args = parser.parse_args()
 
@@ -188,11 +173,13 @@ def sanitize_model_name(model_name: str) -> str:
     return model_name.replace("/", "_")
 
 
-def main(path):
-    args = parse_args(path)
+def main(dataset_path ,limit=None):
+    args = parse_args(dataset_path,limit)
+    print('\n')
     print("Arguments: from generate_abstractive_candidates.py")
     print("### make sure about the path of the dataset ###")
     print(args)
+    print('\n')
     # load the model
     model = AutoModelForSeq2SeqLM.from_pretrained(args.model_name)
     tokenizer = AutoTokenizer.from_pretrained(args.model_name)
@@ -205,6 +192,7 @@ def main(path):
 
     # load the dataset
     print("Loading dataset...")
+    print("the dataset path is: ",args.dataset_path)
     dataset = prepare_dataset(args.dataset_path)
 
     # limit the number of samples

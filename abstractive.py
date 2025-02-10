@@ -7,18 +7,17 @@ from glimpse.data_loading.generate_abstractive_candidates import main as generat
 from glimpse.src.compute_rsa import main as rsa_main
 
 
-def get_dataset_path():
-    """Retrieve dataset path from command-line arguments or use default."""
-    # Default path to the dataset
-    # change this to the path of the dataset you want to summarize
-    database_path = "data/processed/all_reviews_2017.csv"
+class Config:
+    def __init__(self):
+        self.database_path = "data/processed/all_reviews_2017.csv"
+        self.limit = None
 
-    if len(sys.argv) < 2 or not os.path.isfile(sys.argv[1]):
-        print(
-            f"Couldn't find a valid path. Using default path:{database_path}"
-        )
-        return database_path
-    return sys.argv[1]
+    def get_database_path(self):
+        return self.database_path
+
+    def get_limit(self):
+        return self.limit
+
 
 
 def check_cuda():
@@ -30,43 +29,20 @@ def check_cuda():
         sys.exit(1)
 
 
-def generate_summaries(dataset_path, add_padding=False):
-    """Generate abstractive summaries using the model."""
-    # args = argparse.Namespace(
-    #     dataset_path=Path(dataset_path),
-    #     scripted_run=True,
-    #     no_trimming=add_padding,
-    #     filter=None,  # If filtering isn't needed, keep it None
-    #     model_name="google/pegasus-large",  # Default model (change as needed)
-    #     device="cuda" if shutil.which("nvidia-smi") else "cpu",  # Auto-detect device
-    #     output_dir="output",  # Default output directory
-    # )
+def generate_summaries(config):
 
-    return generate_main(dataset_path)  # Pass Namespace object
+    return generate_main(config.get_database_path(), config.get_limit())  # Pass Namespace object
 
 
 def compute_rsa_scores(summaries):
-    print("Summaries path: ")
-    print(Path(summaries))
-    # """Compute RSA scores using the pre-trained model."""
-    # args = argparse.Namespace(
-    #     summaries=Path(summaries),
-    #     model_name="google/pegasus-large",
-    #     device="cuda" if shutil.which("nvidia-smi") else "cpu",
-    #     output_dir="output",
-    #     scripted_run=True,
-    # )
-
+    print("Summaries path: ",Path(summaries))
     return rsa_main(Path(summaries))  # Pass Namespace object
 
 
 def main():
-    dataset_path = get_dataset_path()
+    config = Config()
     check_cuda()
-
-    add_padding = "--add-padding" in sys.argv
-    candidates = generate_summaries(dataset_path, add_padding)
-    print(f"Generated summaries: {candidates}")
+    candidates = generate_summaries(config)
     rsa_scores = compute_rsa_scores(candidates)
 
     print(f"RSA Scores: {rsa_scores}")
