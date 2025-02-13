@@ -8,7 +8,7 @@ from glimpse.src.compute_rsa import main as rsa_main
 class Config:
     def __init__(self):
         self.database_path = "data/processed/all_reviews_2017.csv"
-        self.limit = 10
+        self.limit = None
 
     def get_database_path(self):
         return self.database_path
@@ -42,10 +42,7 @@ def main():
     check_cuda()
     candidates = generate_extractive(config)
     print("now computing rsa scores")
-    print("now computing rsa scores")
-    print("now computing rsa scores")
     compute_rsa_scores(candidates)
-
     # print(f"RSA Scores: {rsa_scores}")
 
 
