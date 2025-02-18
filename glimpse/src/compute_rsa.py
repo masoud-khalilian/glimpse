@@ -76,8 +76,6 @@ def compute_rsa(summaries: pd.DataFrame, model, tokenizer, device):
             consensuality_scores,
         ) = rsa_reranker.rerank(t=2)
 
-        gold = group['gold'].tolist()[0]
-
         results.append(
             {
                 "id": name,
@@ -88,13 +86,12 @@ def compute_rsa(summaries: pd.DataFrame, model, tokenizer, device):
                 "initial_listener": initial_listener,
                 "language_model_proba_df": language_model_proba_df,
                 "initial_consensuality_scores": initial_consensuality_scores,
-                "consensuality_scores": consensuality_scores,  # uniqueness scores
-                "gold": gold,
-                "rationality": 3,  # hyperparameter
-                "text_candidates" : group
+                "consensuality_scores": consensuality_scores,
+                "gold": group['gold'].iloc[0],
+                "rationality": 3,
+                "text_candidates": group
             }
         )
-
     return results
 
 
